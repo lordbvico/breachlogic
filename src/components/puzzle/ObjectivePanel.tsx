@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { Puzzle, TokenPlacement } from '@/types/puzzle'
 import { TIER_CONFIG, COLORS } from '@/constants/theme'
 import clsx from 'clsx'
-import { HelpCircle, RotateCcw, CheckCircle } from 'lucide-react'
+import { HelpCircle, RotateCcw, CheckCircle, Loader2 } from 'lucide-react'
 
 interface Props {
   puzzle: Puzzle
@@ -14,6 +14,7 @@ interface Props {
   onReset: () => void
   disabled: boolean
   hintsUsed: number
+  hintLoading: boolean
   onHint: () => void
 }
 
@@ -25,6 +26,7 @@ export default function ObjectivePanel({
   onReset,
   disabled,
   hintsUsed,
+  hintLoading,
   onHint,
 }: Props) {
   const { tokens, objective, meta } = puzzle
@@ -139,16 +141,18 @@ export default function ObjectivePanel({
 
           <button
             onClick={onHint}
-            disabled={hintsUsed >= maxHints}
+            disabled={hintsUsed >= maxHints || hintLoading}
             className={clsx(
               'flex-1 py-2 rounded-md text-xs font-medium border transition-colors',
-              hintsUsed < maxHints
+              hintsUsed < maxHints && !hintLoading
                 ? 'text-brand-tealdk border-brand-teal hover:bg-brand-teallite'
                 : 'text-slate-mid border-slate-200 cursor-not-allowed',
             )}
           >
-            <HelpCircle className="inline w-3 h-3 mr-1 -mt-0.5" />
-            {hintsUsed < maxHints ? `Hint (${maxHints - hintsUsed} left)` : 'No hints left'}
+            {hintLoading
+              ? <Loader2 className="inline w-3 h-3 mr-1 -mt-0.5 animate-spin" />
+              : <HelpCircle className="inline w-3 h-3 mr-1 -mt-0.5" />}
+            {hintLoading ? 'Thinking…' : hintsUsed < maxHints ? `Hint (${maxHints - hintsUsed} left)` : 'No hints left'}
           </button>
         </div>
       </div>
