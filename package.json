@@ -10,6 +10,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.105.1",
     "@xyflow/react": "^12.3.6",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.17",

@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { Puzzle, TokenPlacement } from '@/types/puzzle'
 import { SEAM_TYPE_LABELS, TIER_CONFIG } from '@/constants/theme'
 import { CheckCircle, Share2, RotateCcw } from 'lucide-react'
 import { formatElapsed, computeAtqDelta } from '@/lib/puzzle-engine'
+import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
 
 interface Props {
@@ -25,8 +27,41 @@ export default function BreachOverlay({
   const tierCfg = TIER_CONFIG[meta.tier]
   const seamLabel = SEAM_TYPE_LABELS[solution.seam_type] ?? solution.seam_type
   const atqDelta = computeAtqDelta(meta.tier, hintsUsed, elapsedMs, meta.estimated_minutes)
+  const saved = useRef(false)
 
-  // Map node IDs to labels for the solution walkthrough
+  useEffect(() => {
+    if (saved.current) return
+    saved.current = true
+
+    async function persist() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Upsert completion (unique constraint on user_id + puzzle_id)
+      const { error: compError } = await supabase
+        .from('puzzle_completions')
+        .upsert({
+          user_id: user.id,
+          puzzle_id: puzzle.id,
+          elapsed_ms: elapsedMs,
+          hints_used: hintsUsed,
+          atq_delta: atqDelta,
+          tier: meta.tier,
+        }, { onConflict: 'user_id,puzzle_id' })
+
+      if (compError) {
+        console.error('Failed to save completion:', compError.message)
+        return
+      }
+
+      // Increment ATQ score on profile
+      await supabase.rpc('increment_atq', { user_id: user.id, delta: atqDelta })
+    }
+
+    persist()
+  }, [])
+
   const nodeMap = Object.fromEntries(
     puzzle.map.nodes.map((n) => [n.id, n.label]),
   )
