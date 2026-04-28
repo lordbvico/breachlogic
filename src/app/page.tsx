@@ -1,16 +1,45 @@
 import { PUZZLES, DAILY_PUZZLE_ID } from '@/data/puzzles'
 import DailyCard from '@/components/home/DailyCard'
 import StreakBanner from '@/components/home/StreakBanner'
+import { createClient } from '@/lib/supabase/server'
+import { RANK_CONFIG } from '@/constants/theme'
 import { BookOpen, Target } from 'lucide-react'
 
-export default function HomePage() {
-  const dailyPuzzle = PUZZLES.find((p) => p.id === DAILY_PUZZLE_ID)
+function getRank(atq: number): string {
+  const entries = Object.entries(RANK_CONFIG)
+  let current = entries[0][0]
+  for (const [name, cfg] of entries) {
+    if (atq >= cfg.min) current = name
+  }
+  return current
+}
+
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let streak = 0
+  let atq = 0
+  let rank = 'Scout'
+  let solvedIds = new Set<string>()
+
+  if (user) {
+    const [{ data: profile }, { data: completions }] = await Promise.all([
+      supabase.from('profiles').select('atq_score, streak').eq('id', user.id).single(),
+      supabase.from('puzzle_completions').select('puzzle_id').eq('user_id', user.id),
+    ])
+    streak = profile?.streak ?? 0
+    atq    = profile?.atq_score ?? 0
+    rank   = getRank(atq)
+    solvedIds = new Set((completions ?? []).map((c) => c.puzzle_id))
+  }
+
+  const dailyPuzzle   = PUZZLES.find((p) => p.id === DAILY_PUZZLE_ID)
   const archivePuzzles = PUZZLES.filter((p) => p.id !== DAILY_PUZZLE_ID)
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Streak banner */}
-      <StreakBanner streak={7} atq={342} rank="Analyst" />
+      <StreakBanner streak={streak} atq={atq} rank={rank} isGuest={!user} />
 
       {/* Daily puzzle */}
       <section>
@@ -21,7 +50,7 @@ export default function HomePage() {
           </h2>
         </div>
         {dailyPuzzle ? (
-          <DailyCard puzzle={dailyPuzzle} isToday />
+          <DailyCard puzzle={dailyPuzzle} isToday solved={solvedIds.has(dailyPuzzle.id)} />
         ) : (
           <p className="text-slate-mid text-sm">No daily puzzle available.</p>
         )}
@@ -51,7 +80,7 @@ export default function HomePage() {
           </div>
           <div className="space-y-3">
             {archivePuzzles.map((p) => (
-              <DailyCard key={p.id} puzzle={p} compact />
+              <DailyCard key={p.id} puzzle={p} compact solved={solvedIds.has(p.id)} />
             ))}
           </div>
         </section>
