@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── BreachLogic base styles ── */
+
+:root {
+  --navy:       #1A237E;
+  --teal:       #00BCD4;
+  --teal-dk:    #0097A7;
+  --teal-lt:    #E0F7FA;
+  --amber:      #BA7517;
+  --amber-lt:   #FAEEDA;
+  --red:        #A32D2D;
+  --red-lt:     #FCEBEB;
+  --green:      #3B6D11;
+  --green-lt:   #EAF3DE;
+  --slate:      #37474F;
+  --slate-mid:  #90A4AE;
+  --slate-lt:   #ECEFF1;
+}
+
+/* React Flow overrides */
+.react-flow__attribution { display: none !important; }
+.react-flow__renderer    { border-radius: 0; }
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--slate-lt); }
+::-webkit-scrollbar-thumb { background: var(--slate-mid); border-radius: 3px; }
+
+/* Selection highlight */
+::selection { background: var(--teal-lt); color: var(--navy); }
+
+/* Custom node styles for React Flow */
+.bl-node {
+  @apply rounded-node border text-xs font-medium select-none cursor-pointer transition-all duration-150;
+}
+.bl-node:hover   { @apply ring-2 ring-brand-teal ring-offset-1; }
+.bl-node.selected { @apply ring-2 ring-brand-teal shadow-md; }
+
+.bl-node-actor   { @apply bg-blue-50   border-brand-navy   text-blue-800; }
+.bl-node-gate    { @apply bg-amber-50  border-gate-amber   text-gate-amberdk; }
+.bl-node-process { @apply bg-cyan-50   border-brand-tealdk text-cyan-900; }
+.bl-node-target  { @apply bg-red-50    border-target-red   text-target-reddk; }
+.bl-node-system  { @apply bg-slate-100 border-slate text-slate; }
