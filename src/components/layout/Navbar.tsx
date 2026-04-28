@@ -2,17 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Flame, Archive, Layers, User, Shield, LogIn, LogOut } from 'lucide-react'
+import { Flame, Archive, Layers, User, Shield, LogIn, LogOut, BookOpen } from 'lucide-react'
 import clsx from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 const NAV_ITEMS = [
-  { href: '/',         label: 'Today',   icon: Flame   },
-  { href: '/archive',  label: 'Archive', icon: Archive },
-  { href: '/sandbox',  label: 'Sandbox', icon: Layers  },
-  { href: '/profile',  label: 'Profile', icon: User    },
+  { href: '/',         label: 'Today',   icon: Flame    },
+  { href: '/archive',  label: 'Archive', icon: Archive  },
+  { href: '/docs',     label: 'Docs',    icon: BookOpen },
+  { href: '/sandbox',  label: 'Sandbox', icon: Layers   },
+  { href: '/profile',  label: 'Profile', icon: User     },
 ]
 
 export default function Navbar() {
