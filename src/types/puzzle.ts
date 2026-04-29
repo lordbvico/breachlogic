@@ -12,6 +12,7 @@ export type PuzzleDomain =
   | 'Compliance GRC'
   | 'Network'
   | 'Identity'
+  | 'Everyday Security'
 
 export type PuzzleStatus = 'draft' | 'review' | 'approved' | 'published' | 'retired'
 export type NodeType = 'actor' | 'gate' | 'process' | 'target' | 'system'
@@ -25,6 +26,7 @@ export type SeamType =
   | 'ai-logic-chain'
   | 'scope-confusion'
   | 'delegation-chain'
+  | 'social-engineering'
 
 // ── Node / Edge ──────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { RANK_CONFIG, DOMAIN_ICONS } from '@/constants/theme'
 import { Shield, Flame, Zap, Lock } from 'lucide-react'
 import { getPuzzleById } from '@/data/puzzles'
+import AccountSettingsForm from '@/components/profile/AccountSettingsForm'
 
 export const metadata = {
   title: 'Profile — BreachLogic',
@@ -142,23 +143,12 @@ export default async function ProfilePage() {
         </div>
       )}
 
-      {/* ATQ privacy toggle — UI only for now */}
-      <div className="rounded-xl bg-white border border-slate-200 p-5">
-        <h2 className="text-sm font-semibold text-brand-navy mb-1">ATQ Visibility</h2>
-        <p className="text-xs text-slate mb-4">
-          Your Adversarial Thinking Quotient is private by default. Opt in to appear on the public
-          leaderboard by domain.
-        </p>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate">Public leaderboard</p>
-            <p className="text-[11px] text-slate-mid">Show your ATQ and rank publicly</p>
-          </div>
-          <button className="relative w-11 h-6 rounded-full bg-slate-lite border border-slate-200 transition-colors">
-            <span className="absolute left-1 top-1 w-4 h-4 rounded-full bg-slate-mid transition-transform" />
-          </button>
-        </div>
-      </div>
+      {/* Account settings */}
+      <AccountSettingsForm
+        userId={user.id}
+        email={user.email ?? ''}
+        initialUsername={profile?.username ?? null}
+      />
     </div>
   )
 }

@@ -34,10 +34,45 @@ export type Database = {
         }
         Relationships: []
       }
+      community_puzzles: {
+        Row: {
+          id: string
+          author_id: string
+          title: string
+          data: unknown
+          published: boolean
+          featured: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          author_id: string
+          title: string
+          data: unknown
+          published?: boolean
+          featured?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          author_id?: string
+          title?: string
+          data?: unknown
+          published?: boolean
+          featured?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
           username: string | null
+          email: string | null
+          is_admin: boolean
           atq_score: number
           streak: number
           last_played_at: string | null
@@ -46,6 +81,8 @@ export type Database = {
         Insert: {
           id: string
           username?: string | null
+          email?: string | null
+          is_admin?: boolean
           atq_score?: number
           streak?: number
           last_played_at?: string | null
@@ -54,6 +91,8 @@ export type Database = {
         Update: {
           id?: string
           username?: string | null
+          email?: string | null
+          is_admin?: boolean
           atq_score?: number
           streak?: number
           last_played_at?: string | null
@@ -67,6 +106,10 @@ export type Database = {
       increment_atq: {
         Args: { user_id: string; delta: number }
         Returns: void
+      }
+      is_admin: {
+        Args: Record<string, never>
+        Returns: boolean
       }
     }
     Enums: Record<string, never>

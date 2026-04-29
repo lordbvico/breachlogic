@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
@@ -17,6 +17,16 @@ export const metadata: Metadata = {
   },
 }
 
+// viewport-fit=cover is required for safe-area-inset-* to work on iOS notch / Dynamic Island
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#1A237E',
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -24,7 +34,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50 text-slate-800 min-h-screen`}>
+      {/*
+        pb-safe adds env(safe-area-inset-bottom) padding so content never hides
+        behind the iOS home indicator bar.
+      */}
+      <body className={`${inter.className} bg-slate-50 text-slate-800 min-h-screen pb-[env(safe-area-inset-bottom)]`}>
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
       </body>

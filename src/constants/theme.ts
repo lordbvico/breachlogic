@@ -62,6 +62,7 @@ export const DOMAIN_ICONS: Record<string, string> = {
   'Compliance GRC':     '📋',
   'Network':            '🌐',
   'Identity':           '🪪',
+  'Everyday Security':  '🛡️',
 }
 
 export const SEAM_TYPE_LABELS: Record<string, string> = {
@@ -72,6 +73,7 @@ export const SEAM_TYPE_LABELS: Record<string, string> = {
   'ai-logic-chain':       'AI Logic Chain',
   'scope-confusion':      'Scope Confusion',
   'delegation-chain':     'Delegation Chain',
+  'social-engineering':   'Social Engineering',
 }
 
 export const RANK_CONFIG: Record<string, {

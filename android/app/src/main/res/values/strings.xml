@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BreachLogic</string>
+    <string name="title_activity_main">BreachLogic</string>
+    <string name="package_name">com.breachlogic.app</string>
+    <string name="custom_url_scheme">com.breachlogic.app</string>
+</resources>
