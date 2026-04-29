@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   // Set CAPACITOR_SERVER_URL in your environment or replace the string below
   // with your deployed URL (e.g. https://breachlogic.vercel.app).
   server: {
-    url: process.env.CAPACITOR_SERVER_URL ?? 'https://your-app.vercel.app',
+    url: process.env.CAPACITOR_SERVER_URL ?? 'https://breachlogic-mauve.vercel.app/',
     cleartext: false,
     androidScheme: 'https',
   },
