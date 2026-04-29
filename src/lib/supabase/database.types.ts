@@ -42,6 +42,7 @@ export type Database = {
           data: unknown
           published: boolean
           featured: boolean
+          status: string
           created_at: string
           updated_at: string
         }
@@ -52,6 +53,7 @@ export type Database = {
           data: unknown
           published?: boolean
           featured?: boolean
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -62,6 +64,7 @@ export type Database = {
           data?: unknown
           published?: boolean
           featured?: boolean
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -96,6 +99,39 @@ export type Database = {
           atq_score?: number
           streak?: number
           last_played_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          message: string
+          puzzle_id: string | null
+          puzzle_title: string | null
+          read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          message: string
+          puzzle_id?: string | null
+          puzzle_title?: string | null
+          read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          message?: string
+          puzzle_id?: string | null
+          puzzle_title?: string | null
+          read?: boolean
           created_at?: string
         }
         Relationships: []

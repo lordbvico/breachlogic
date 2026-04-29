@@ -19,7 +19,7 @@ export async function GET() {
     const db = createAdminClient()
     const { data: communityData, error } = await db
       .from('community_puzzles')
-      .select('id, title, published, featured, created_at, updated_at, author_id, data, profiles!author_id(username, email)')
+      .select('id, title, published, featured, status, created_at, updated_at, author_id, data, profiles!author_id(username, email)')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -59,6 +59,7 @@ export async function GET() {
         title: c.title,
         published: c.published,
         featured: c.featured,
+        status: c.status ?? 'draft',
         created_at: c.created_at,
         updated_at: c.updated_at,
         author_id: c.author_id,

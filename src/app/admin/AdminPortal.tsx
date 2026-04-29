@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Users, Puzzle, RefreshCw, Shield, Check, X, Trash2, Upload,
   ChevronDown, ChevronUp, AlertCircle, Star, Globe, Lock, Loader2, Edit2,
-  ExternalLink,
+  ExternalLink, Clock, CheckCircle, XCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { TIER_CONFIG } from '@/constants/theme'
@@ -41,6 +41,7 @@ interface CommunityPuzzleItem {
   title: string
   published: boolean
   featured: boolean
+  status: string
   created_at: string
   updated_at: string
   author_id: string
@@ -135,10 +136,16 @@ export default function AdminPortal({ adminEmail }: { adminEmail: string }) {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <StatCard label="Total users" value={users.length || '—'} icon={Users} />
         <StatCard label="Total puzzles" value={totalPuzzles || '—'} icon={Puzzle} />
         <StatCard label="Community puzzles" value={communityPuzzles.length || '—'} icon={Globe} />
+        <StatCard
+          label="Pending review"
+          value={communityPuzzles.filter((p) => p.status === 'pending_review').length || '—'}
+          icon={Clock}
+          highlight={communityPuzzles.some((p) => p.status === 'pending_review')}
+        />
       </div>
 
       {/* Tabs */}
@@ -402,6 +409,38 @@ function PuzzlesTab({
     onRefresh()
   }
 
+  async function approvePuzzle(puzzle: CommunityPuzzleItem) {
+    setSaving(puzzle.id + '-approve')
+    await fetch(`/api/admin/puzzles/${puzzle.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        published: true,
+        status: 'published',
+        notify: { type: 'puzzle_approved' },
+      }),
+    })
+    setSaving(null)
+    onRefresh()
+  }
+
+  async function rejectPuzzle(puzzle: CommunityPuzzleItem) {
+    const reason = prompt('Reason for rejection (optional — will be shown to the author):')
+    if (reason === null) return // user pressed Cancel
+    setSaving(puzzle.id + '-reject')
+    await fetch(`/api/admin/puzzles/${puzzle.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        published: false,
+        status: 'rejected',
+        notify: { type: 'puzzle_rejected', reason: reason || undefined },
+      }),
+    })
+    setSaving(null)
+    onRefresh()
+  }
+
   async function changeTier(puzzle: CommunityPuzzleItem, newTier: number) {
     setSaving(puzzle.id + '-tier')
     const data = puzzle.data as Record<string, unknown>
@@ -448,6 +487,64 @@ function PuzzlesTab({
           onDone={() => { setEditing(null); onRefresh() }}
           onCancel={() => setEditing(null)}
         />
+      )}
+
+      {/* Pending Review section */}
+      {communityPuzzles.some((p) => p.status === 'pending_review') && (
+        <div className="border-b border-gate-amber/30 bg-gate-amberlite px-5 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-gate-amberdk" />
+            <h3 className="text-sm font-semibold text-gate-amberdk">
+              Pending Review ({communityPuzzles.filter((p) => p.status === 'pending_review').length})
+            </h3>
+            <p className="text-xs text-gate-amber ml-1">— puzzles submitted by users, awaiting your approval</p>
+          </div>
+          <div className="space-y-2">
+            {communityPuzzles.filter((p) => p.status === 'pending_review').map((p) => (
+              <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl border border-gate-amber/30 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-brand-navy truncate">{p.title}</p>
+                  <p className="text-[10px] text-slate-mid mt-0.5">
+                    By {p.profiles?.username ?? p.profiles?.email ?? 'Unknown'} ·{' '}
+                    {new Date(p.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => openInBuilder(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-brand-navy border border-brand-navy/30 hover:bg-brand-navy/5 transition-colors"
+                    title="Preview in builder"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => approvePuzzle(p)}
+                    disabled={saving === p.id + '-approve' || saving === p.id + '-reject'}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-success-green border border-success-green/30 bg-success-greenlite hover:bg-success-green/20 transition-colors disabled:opacity-60"
+                  >
+                    {saving === p.id + '-approve'
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <CheckCircle className="w-3 h-3" />
+                    }
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => rejectPuzzle(p)}
+                    disabled={saving === p.id + '-approve' || saving === p.id + '-reject'}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-target-red border border-target-red/30 bg-target-redlite hover:bg-target-red/20 transition-colors disabled:opacity-60"
+                  >
+                    {saving === p.id + '-reject'
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <XCircle className="w-3 h-3" />
+                    }
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="overflow-x-auto">
@@ -593,22 +690,34 @@ function PuzzlesTab({
                   {p.profiles?.username ?? p.profiles?.email ?? 'Unknown'}
                 </td>
                 <td className="px-5 py-3">
-                  <button
-                    onClick={() => togglePublished(p)}
-                    disabled={saving === p.id}
-                    className={clsx(
-                      'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors',
-                      p.published
-                        ? 'bg-success-green/10 border-success-green/30 text-success-green hover:bg-success-green/20'
-                        : 'bg-slate-100 border-slate-200 text-slate-mid hover:bg-slate-200',
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => togglePublished(p)}
+                      disabled={saving === p.id}
+                      className={clsx(
+                        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors w-fit',
+                        p.published
+                          ? 'bg-success-green/10 border-success-green/30 text-success-green hover:bg-success-green/20'
+                          : 'bg-slate-100 border-slate-200 text-slate-mid hover:bg-slate-200',
+                      )}
+                    >
+                      {saving === p.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : p.published ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />
+                      }
+                      {p.published ? 'Live' : 'Draft'}
+                    </button>
+                    {p.status === 'pending_review' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gate-amberlite border border-gate-amber/30 text-[10px] font-medium text-gate-amberdk w-fit">
+                        <Clock className="w-2.5 h-2.5" /> Pending
+                      </span>
                     )}
-                  >
-                    {saving === p.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : p.published ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />
-                    }
-                    {p.published ? 'Live' : 'Draft'}
-                  </button>
+                    {p.status === 'rejected' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-target-redlite border border-target-red/30 text-[10px] font-medium text-target-red w-fit">
+                        <X className="w-2.5 h-2.5" /> Rejected
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-5 py-3">
                   <button
@@ -892,14 +1001,17 @@ function UploadPuzzleForm({ onDone }: { onDone: () => void }) {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ElementType }) {
+function StatCard({ label, value, icon: Icon, highlight }: { label: string; value: number | string; icon: React.ElementType; highlight?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+    <div className={clsx(
+      'rounded-xl border px-5 py-4',
+      highlight ? 'bg-gate-amberlite border-gate-amber/40' : 'bg-white border-slate-200',
+    )}>
       <div className="flex items-center gap-2 mb-1">
-        <Icon className="w-4 h-4 text-slate-mid" />
-        <span className="text-xs text-slate-mid">{label}</span>
+        <Icon className={clsx('w-4 h-4', highlight ? 'text-gate-amberdk' : 'text-slate-mid')} />
+        <span className={clsx('text-xs', highlight ? 'text-gate-amberdk font-medium' : 'text-slate-mid')}>{label}</span>
       </div>
-      <p className="text-2xl font-semibold text-brand-navy">{value}</p>
+      <p className={clsx('text-2xl font-semibold', highlight ? 'text-gate-amberdk' : 'text-brand-navy')}>{value}</p>
     </div>
   )
 }
