@@ -1,0 +1,38 @@
+{
+	"appId": "com.breachlogic.app",
+	"appName": "BreachLogic",
+	"webDir": "out",
+	"server": {
+		"url": "https://breachlogic-mauve.vercel.app/",
+		"cleartext": false,
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"StatusBar": {
+			"style": "Dark",
+			"backgroundColor": "#1A237E",
+			"overlaysWebView": false
+		},
+		"SplashScreen": {
+			"launchShowDuration": 1800,
+			"launchAutoHide": true,
+			"backgroundColor": "#1A237E",
+			"androidSplashResourceName": "splash",
+			"showSpinner": false
+		},
+		"App": {}
+	},
+	"ios": {
+		"contentInset": "always",
+		"allowsLinkPreview": false,
+		"scrollEnabled": true,
+		"backgroundColor": "#1A237E",
+		"scheme": "breachlogic"
+	},
+	"android": {
+		"backgroundColor": "#1A237E",
+		"allowMixedContent": false,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": false
+	}
+}
