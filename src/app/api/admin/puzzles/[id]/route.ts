@@ -24,18 +24,52 @@ export async function PATCH(
       data?: unknown
       published?: boolean
       featured?: boolean
+      status?: string
+      notify?: { type: 'puzzle_approved' | 'puzzle_rejected'; reason?: string }
     }
-    const updates: { title?: string; data?: unknown; published?: boolean; featured?: boolean; updated_at: string } = {
-      updated_at: new Date().toISOString(),
+    type PuzzleUpdate = {
+      title?: string
+      data?: unknown
+      published?: boolean
+      featured?: boolean
+      status?: string
+      updated_at: string
     }
+    const updates: PuzzleUpdate = { updated_at: new Date().toISOString() }
     if (body.title !== undefined) updates.title = body.title
     if (body.data !== undefined) updates.data = body.data
     if (body.published !== undefined) updates.published = body.published
     if (body.featured !== undefined) updates.featured = body.featured
+    if (body.status !== undefined) updates.status = body.status
 
     const db = createAdminClient()
     const { error } = await db.from('community_puzzles').update(updates).eq('id', id)
     if (error) throw error
+
+    // Create a notification for the puzzle author if requested
+    if (body.notify) {
+      const { data: puzzle } = await db
+        .from('community_puzzles')
+        .select('author_id, title')
+        .eq('id', id)
+        .single()
+
+      if (puzzle) {
+        const isApproval = body.notify.type === 'puzzle_approved'
+        const message = isApproval
+          ? `Your puzzle "${puzzle.title}" has been approved and is now live in the library! 🎉`
+          : `Your puzzle "${puzzle.title}" was not approved.${body.notify.reason ? ` Reason: ${body.notify.reason}` : ' Please review and resubmit.'}`
+
+        await db.from('notifications').insert({
+          user_id: puzzle.author_id,
+          type: body.notify.type,
+          message,
+          puzzle_id: id,
+          puzzle_title: puzzle.title,
+          read: false,
+        })
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Flame, Puzzle, User, Shield, LogIn, LogOut, BookOpen, ShieldAlert,
-  Layers, Trophy, ChevronDown, Settings, Zap,
+  Layers, Trophy, ChevronDown, Settings, Zap, Bell, CheckCircle, XCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -15,6 +15,16 @@ interface ProfileData {
   username: string | null
   atq_score: number
   streak: number
+}
+
+interface NotifItem {
+  id: string
+  type: string
+  message: string
+  puzzle_id: string | null
+  puzzle_title: string | null
+  read: boolean
+  created_at: string
 }
 
 const NAV_ITEMS = [
@@ -34,18 +44,30 @@ export default function Navbar() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotifItem[]>([])
+  const [notifOpen, setNotifOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const notifRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
-      if (data.user) fetchProfile(data.user.id)
+      if (data.user) {
+        fetchProfile(data.user.id)
+        fetchNotifications()
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else { setProfile(null); setIsAdmin(false) }
+      if (session?.user) {
+        fetchProfile(session.user.id)
+        fetchNotifications()
+      } else {
+        setProfile(null)
+        setIsAdmin(false)
+        setNotifications([])
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -56,10 +78,13 @@ export default function Navbar() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setProfileOpen(false)
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
     }
-    if (profileOpen) document.addEventListener('mousedown', handleClick)
+    if (profileOpen || notifOpen) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [profileOpen])
+  }, [profileOpen, notifOpen])
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -71,6 +96,28 @@ export default function Navbar() {
       setProfile({ username: data.username, atq_score: data.atq_score, streak: data.streak })
       setIsAdmin(data.is_admin ?? false)
     }
+  }
+
+  async function fetchNotifications() {
+    try {
+      const res = await fetch('/api/notifications')
+      if (!res.ok) return
+      const json = await res.json() as { notifications?: NotifItem[] }
+      setNotifications(json.notifications ?? [])
+    } catch {
+      // silent — notifications are non-critical
+    }
+  }
+
+  async function markNotifRead(id: string) {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
+    await fetch(`/api/notifications/${id}`, { method: 'PATCH' })
+  }
+
+  async function markAllRead() {
+    const unread = notifications.filter((n) => !n.read)
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    await Promise.all(unread.map((n) => fetch(`/api/notifications/${n.id}`, { method: 'PATCH' })))
   }
 
   function handleSignIn() {
@@ -86,6 +133,7 @@ export default function Navbar() {
 
   const displayName = profile?.username ?? user?.email?.split('@')[0] ?? 'You'
   const initial = displayName.charAt(0).toUpperCase()
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
     <header className="bg-brand-navy text-white shadow-md sticky top-0 z-50"
@@ -151,6 +199,72 @@ export default function Navbar() {
                   <span className="font-semibold text-brand-teal">{profile?.atq_score.toLocaleString() ?? '—'}</span>
                   <span className="text-white/40 text-xs">ATQ</span>
                 </div>
+              </div>
+
+              {/* Notification bell */}
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false) }}
+                  className="relative p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-target-red text-white text-[9px] font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 top-10 w-80 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                      <h3 className="text-xs font-semibold text-brand-navy">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllRead}
+                          className="text-[10px] text-brand-teal hover:underline"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-slate-mid">
+                        No notifications yet
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                        {notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={clsx(
+                              'px-4 py-3 flex gap-3 cursor-pointer hover:bg-slate-50 transition-colors',
+                              !n.read && 'bg-brand-teal/5',
+                            )}
+                            onClick={() => markNotifRead(n.id)}
+                          >
+                            <div className="mt-0.5 flex-shrink-0">
+                              {n.type === 'puzzle_approved'
+                                ? <CheckCircle className="w-4 h-4 text-success-green" />
+                                : <XCircle className="w-4 h-4 text-target-red" />
+                              }
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-slate leading-relaxed">{n.message}</p>
+                              <p className="text-[10px] text-slate-mid mt-1">
+                                {new Date(n.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            {!n.read && (
+                              <div className="w-2 h-2 rounded-full bg-brand-teal mt-1.5 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Profile dropdown trigger */}

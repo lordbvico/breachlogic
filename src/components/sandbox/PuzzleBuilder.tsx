@@ -142,7 +142,9 @@ const DOMAINS: PuzzleDomain[] = [
   'Incident Response', 'Compliance GRC', 'Network', 'Identity',
 ]
 
-export default function PuzzleBuilder({ userId }: { userId: string }) {
+type SubmissionStatus = 'draft' | 'pending_review' | 'rejected' | 'published'
+
+export default function PuzzleBuilder({ userId, isAdmin = false }: { userId: string; isAdmin?: boolean }) {
   const [tab, setTab] = useState<Tab>('build')
 
   // Graph state
@@ -193,6 +195,7 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
   const [published, setPublished] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('draft')
 
   // AI generation
   const [showAIModal, setShowAIModal] = useState(false)
@@ -551,19 +554,18 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
     try {
       const supabase = createClient()
       const puzzle = buildPuzzle()
-      const row = { author_id: userId, title: puzzle.meta.title, data: puzzle as unknown }
 
       if (savedId) {
         const { error } = await supabase
           .from('community_puzzles')
-          .update({ ...row, updated_at: new Date().toISOString() })
+          .update({ title: puzzle.meta.title, data: puzzle as unknown, updated_at: new Date().toISOString() })
           .eq('id', savedId)
         if (error) throw error
         setSaveMsg('Saved!')
       } else {
         const { data, error } = await supabase
           .from('community_puzzles')
-          .insert(row)
+          .insert({ author_id: userId, title: puzzle.meta.title, data: puzzle as unknown, published: false })
           .select('id')
           .single()
         if (error) throw error
@@ -579,6 +581,7 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
     }
   }
 
+  // Admin-only: publish directly to library
   async function handlePublish() {
     setPublishing(true)
     setSaveMsg(null)
@@ -604,9 +607,51 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
         setSavedPuzzleId(puzzle.id)
       }
       setPublished(true)
+      setSubmissionStatus('published')
       setSaveMsg(`Published! /puzzle/${puzzle.id}`)
     } catch {
       setSaveMsg('Publish failed — check Supabase community_puzzles table exists')
+    } finally {
+      setPublishing(false)
+      setTimeout(() => setSaveMsg(null), 6000)
+    }
+  }
+
+  // Non-admin: submit puzzle for admin review
+  async function handleSubmitForReview() {
+    setPublishing(true)
+    setSaveMsg(null)
+    try {
+      const supabase = createClient()
+      const puzzle = buildPuzzle()
+      const row = {
+        author_id: userId,
+        title: puzzle.meta.title,
+        data: puzzle as unknown,
+        published: false,
+        status: 'pending_review',
+      }
+
+      if (savedId) {
+        const { error } = await supabase
+          .from('community_puzzles')
+          .update({ ...row, updated_at: new Date().toISOString() })
+          .eq('id', savedId)
+        if (error) throw error
+      } else {
+        const { data, error } = await supabase
+          .from('community_puzzles')
+          .insert(row)
+          .select('id')
+          .single()
+        if (error) throw error
+        setSavedId(data.id)
+        setSavedPuzzleId(puzzle.id)
+      }
+      setSubmissionStatus('pending_review')
+      setSaveMsg('Submitted for review! You\'ll get notified when approved.')
+    } catch {
+      setSaveMsg('Submit failed — try again')
     } finally {
       setPublishing(false)
       setTimeout(() => setSaveMsg(null), 6000)
@@ -651,7 +696,7 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
           {saveMsg && (
             <span className={clsx(
               'text-xs font-medium',
-              saveMsg.startsWith('Save failed') || saveMsg.startsWith('Publish failed')
+              saveMsg.startsWith('Save failed') || saveMsg.startsWith('Publish failed') || saveMsg.startsWith('Submit failed')
                 ? 'text-target-red'
                 : 'text-success-green',
             )}>
@@ -681,24 +726,47 @@ export default function PuzzleBuilder({ userId }: { userId: string }) {
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Save Draft
           </button>
-          {published ? (
-            <button
-              onClick={handlePublish}
-              disabled={saving || publishing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-success-green bg-success-greenlite border border-success-green/30 rounded-md hover:bg-success-green/20 transition-colors disabled:opacity-60"
-              title="Re-publish to update the live puzzle"
-            >
-              {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-              Update Live Puzzle
-            </button>
+
+          {/* Publish / Submit — differs for admin vs regular user */}
+          {isAdmin ? (
+            published ? (
+              <button
+                onClick={handlePublish}
+                disabled={saving || publishing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-success-green bg-success-greenlite border border-success-green/30 rounded-md hover:bg-success-green/20 transition-colors disabled:opacity-60"
+                title="Re-publish to update the live puzzle"
+              >
+                {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+                Update Live Puzzle
+              </button>
+            ) : (
+              <button
+                onClick={handlePublish}
+                disabled={saving || publishing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-brand-navy text-white rounded-md hover:bg-brand-navydk transition-colors disabled:opacity-60"
+              >
+                {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+                Publish to Library
+              </button>
+            )
+          ) : submissionStatus === 'pending_review' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gate-amberdk bg-gate-amberlite border border-gate-amber/30 rounded-md cursor-default">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Pending Review
+            </span>
+          ) : submissionStatus === 'published' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-success-green bg-success-greenlite border border-success-green/30 rounded-md cursor-default">
+              <Globe className="w-3.5 h-3.5" />
+              Published
+            </span>
           ) : (
             <button
-              onClick={handlePublish}
+              onClick={handleSubmitForReview}
               disabled={saving || publishing}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-brand-navy text-white rounded-md hover:bg-brand-navydk transition-colors disabled:opacity-60"
             >
               {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-              Publish to Library
+              {submissionStatus === 'rejected' ? 'Resubmit for Review' : 'Submit for Review'}
             </button>
           )}
         </div>
