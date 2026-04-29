@@ -33,7 +33,7 @@ import BreachOverlay from './BreachOverlay'
 import MultipleChoicePanel from './MultipleChoicePanel'
 import RepairModePanel from './RepairModePanel'
 import clsx from 'clsx'
-import { Info, X, Zap, ListChecks } from 'lucide-react'
+import { Info, X, Zap, ListChecks, BookOpen, ChevronUp } from 'lucide-react'
 
 // ── Custom Node Types ─────────────────────────────────────────────────────────
 
@@ -67,8 +67,8 @@ function BLNode({ data }: { data: BLNodeData }) {
       <div
         onClick={() => isSelectable && data.onToken?.(data.id)}
         className={clsx(
-          'rounded-[6px] border-2 px-3 py-2 text-center transition-all duration-150 min-w-[100px] max-w-[130px]',
-          isSelectable && 'cursor-pointer hover:shadow-md',
+          'rounded-[6px] border-2 px-3 py-3 text-center transition-all duration-150 min-w-[120px] max-w-[160px]',
+          isSelectable && 'cursor-pointer hover:shadow-md active:scale-95',
           isSelectable && !isSelected && !isOnPath && !isPreview && 'hover:ring-2 hover:ring-offset-1 hover:ring-[#00BCD4]',
           isSelected   && 'ring-2 ring-[#00BCD4] ring-offset-1 shadow-md',
           isOnPath     && 'ring-2 ring-offset-1 shadow-lg',
@@ -102,43 +102,43 @@ function BLNode({ data }: { data: BLNodeData }) {
       >
         {/* Token placed indicator */}
         {isSelected && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-brand-navy text-white flex items-center justify-center text-[9px] font-bold shadow">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-brand-navy text-white flex items-center justify-center text-[10px] font-bold shadow">
             ✓
           </div>
         )}
         {/* Solution path indicator */}
         {isOnPath && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-success-green text-white flex items-center justify-center text-[9px] font-bold shadow">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-success-green text-white flex items-center justify-center text-[10px] font-bold shadow">
             →
           </div>
         )}
         {/* Repair fix badge */}
         {isRepairFix && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-success-green text-white flex items-center justify-center text-[8px] font-bold shadow">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-success-green text-white flex items-center justify-center text-[9px] font-bold shadow">
             ✦
           </div>
         )}
         {/* MC preview indicator */}
         {isPreview && (
           <div
-            className="absolute -top-2 -right-2 w-5 h-5 rounded-full text-white flex items-center justify-center text-[9px] font-bold shadow"
+            className="absolute -top-2 -right-2 w-6 h-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold shadow"
             style={{ background: COLORS.gate.warn }}
           >
             ?
           </div>
         )}
 
-        <p className="text-[11px] font-semibold leading-tight" style={{ color: colors.border }}>
+        <p className="text-xs font-semibold leading-tight" style={{ color: colors.border }}>
           {data.label}
         </p>
         {data.sublabel && (
-          <p className="text-[9px] mt-0.5 leading-tight" style={{ color: colors.text }}>
+          <p className="text-[10px] mt-0.5 leading-tight" style={{ color: colors.text }}>
             {data.sublabel}
           </p>
         )}
 
         {data.locked && data.nodeType === 'target' && (
-          <p className="text-[9px] mt-1 text-target-red font-medium">🔒 LOCKED</p>
+          <p className="text-[10px] mt-1 text-target-red font-medium">🔒 LOCKED</p>
         )}
 
         {isSelectable && !isSelected && !isOnPath && !isPreview && (
@@ -333,6 +333,25 @@ export default function PuzzleCanvas({ puzzle }: Props) {
   const [repairActive, setRepairActive]  = useState(false)
   const [repairConfirmed, setRepairConfirmed] = useState(false)
 
+  // Mobile responsive state
+  const [isMobile, setIsMobile]               = useState(false)
+  const [showMobileRules, setShowMobileRules]       = useState(false)
+  const [showMobileObjective, setShowMobileObjective] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Auto-open objective sheet on mobile when breach is confirmed
+  useEffect(() => {
+    if (phase === 'breach-confirmed' && isMobile) {
+      setShowMobileObjective(true)
+    }
+  }, [phase, isMobile])
+
   useEffect(() => {
     if (phase !== 'playing') return
     const id = setInterval(() => {
@@ -467,20 +486,73 @@ export default function PuzzleCanvas({ puzzle }: Props) {
   const timerSecs = timer % 60
   const timerWarning = timer < 60 && phase === 'playing'
 
-  // Right panel width
+  // Right panel width (desktop)
   const rightPanelWidth = phase === 'breach-confirmed'
     ? 'w-80'
     : gameMode === 'mc'
     ? 'w-64'
     : 'w-48'
 
+  // Shared right-panel content (used by both desktop aside and mobile bottom sheet)
+  const rightPanelContent = phase === 'breach-confirmed' ? (
+    repairActive ? (
+      <RepairModePanel
+        puzzle={puzzle}
+        choices={repairChoices}
+        baseSolveAtq={(() => {
+          const base = computeAtqDelta(puzzle.meta.tier, hintsUsed, elapsed, puzzle.meta.estimated_minutes)
+          return challengeMode ? Math.round(base * 1.5) : gameMode === 'mc' ? Math.round(base * 0.75) : base
+        })()}
+        onBack={() => setRepairActive(false)}
+        onRepairConfirmed={() => setRepairConfirmed(true)}
+      />
+    ) : (
+      <BreachOverlay
+        puzzle={puzzle}
+        placements={placements}
+        elapsedMs={elapsed}
+        hintsUsed={hintsUsed}
+        challengeMode={challengeMode}
+        mcMode={gameMode === 'mc'}
+        onPlayAgain={handleReset}
+        onStartRepair={() => setRepairActive(true)}
+      />
+    )
+  ) : gameMode === 'mc' ? (
+    <MultipleChoicePanel
+      puzzle={puzzle}
+      choices={mcChoices}
+      selected={mcSelected}
+      hovered={mcHovered}
+      wrongId={mcWrongId}
+      challengeMode={challengeMode}
+      onSelect={setMcSelected}
+      onHover={setMcHovered}
+      onConfirm={handleMCConfirm}
+      onReset={handleReset}
+    />
+  ) : (
+    <ObjectivePanel
+      puzzle={puzzle}
+      placements={placements}
+      onPlacementRemove={handleRemovePlacement}
+      onConfirm={handleConfirm}
+      onReset={handleReset}
+      disabled={phase === 'confirmed-wrong'}
+      hintsUsed={hintsUsed}
+      hintLoading={hintLoading}
+      onHint={handleHint}
+      challengeMode={challengeMode}
+    />
+  )
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-brand-navy text-white text-sm border-b border-white/10 flex-shrink-0">
-        <span className="font-semibold truncate">{puzzle.meta.title}</span>
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 bg-brand-navy text-white text-sm border-b border-white/10 flex-shrink-0">
+        <span className="font-semibold truncate text-xs sm:text-sm">{puzzle.meta.title}</span>
         <span
-          className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+          className="text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
           style={{
             background: TIER_CONFIG[puzzle.meta.tier]?.bgColor ?? '#EAF3DE',
             color: TIER_CONFIG[puzzle.meta.tier]?.color ?? '#3B6D11',
@@ -492,7 +564,7 @@ export default function PuzzleCanvas({ puzzle }: Props) {
         {/* Intel brief toggle */}
         <button
           onClick={() => setShowBrief((v) => !v)}
-          className="flex items-center gap-1 text-[11px] text-white/60 hover:text-white transition-colors ml-1"
+          className="flex items-center gap-1 text-[11px] text-white/60 hover:text-white transition-colors ml-0.5"
           title="Toggle intel brief"
         >
           <Info className="w-3.5 h-3.5" />
@@ -537,7 +609,7 @@ export default function PuzzleCanvas({ puzzle }: Props) {
               title={challengeMode ? 'Challenge Mode — no hints, ×1.5 ATQ' : 'Enable Challenge Mode'}
             >
               <Zap className="w-3 h-3" />
-              <span>Challenge</span>
+              <span className="hidden sm:inline">Challenge</span>
             </button>
           </>
         )}
@@ -580,16 +652,42 @@ export default function PuzzleCanvas({ puzzle }: Props) {
       )}
 
       {/* Three-panel layout */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left — Rule Set */}
-        <aside className="w-52 flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto p-3">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+
+        {/* ── Left panel: desktop always-visible sidebar ── */}
+        <aside className="hidden sm:flex sm:flex-col w-52 flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto p-3">
           <RuleSetPanel
             rules={puzzle.rules}
             highlightedGateId={puzzle.meta.tier >= 4 ? puzzle.rules[puzzle.rules.length - 1]?.gate_id : undefined}
           />
         </aside>
 
-        {/* Center — Node Graph */}
+        {/* ── Mobile rules drawer overlay ── */}
+        {showMobileRules && (
+          <div className="sm:hidden absolute inset-0 z-30 flex">
+            <div className="w-72 max-w-[85vw] bg-slate-50 border-r border-slate-200 overflow-y-auto flex flex-col shadow-xl">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-slate-200 flex-shrink-0">
+                <span className="text-sm font-semibold text-brand-navy">Rule Set</span>
+                <button
+                  onClick={() => setShowMobileRules(false)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3 overflow-y-auto">
+                <RuleSetPanel
+                  rules={puzzle.rules}
+                  highlightedGateId={puzzle.meta.tier >= 4 ? puzzle.rules[puzzle.rules.length - 1]?.gate_id : undefined}
+                />
+              </div>
+            </div>
+            {/* Tap outside to close */}
+            <div className="flex-1 bg-black/20" onClick={() => setShowMobileRules(false)} />
+          </div>
+        )}
+
+        {/* ── Center — Node Graph ── */}
         <div
           className={clsx(
             'flex-1 min-w-0 relative',
@@ -608,96 +706,123 @@ export default function PuzzleCanvas({ puzzle }: Props) {
             edges={syncedEdges}
             nodeTypes={NODE_TYPES}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
+            fitViewOptions={{ padding: isMobile ? 0.15 : 0.3 }}
             nodesDraggable={false}
             nodesConnectable={false}
             panOnDrag
-            zoomOnScroll
-            minZoom={0.3}
-            maxZoom={2}
+            zoomOnPinch
+            zoomOnScroll={!isMobile}
+            minZoom={0.2}
+            maxZoom={2.5}
             className="bg-white"
             proOptions={{ hideAttribution: true }}
           >
             <Background color="#cbd5e1" gap={24} size={1} />
-            <Controls showInteractive={false} />
-            <MiniMap
-              nodeColor={(n) => {
-                const type = (n.data as unknown as BLNodeData).nodeType
-                const colors = COLORS.node as Record<string, { bg: string; border: string; text: string }>
-                return colors[type]?.border ?? COLORS.slate.mid
-              }}
-              maskColor="rgba(255,255,255,0.75)"
-              style={{ border: '1px solid #e2e8f0' }}
-            />
+            {!isMobile && <Controls showInteractive={false} />}
+            {!isMobile && (
+              <MiniMap
+                nodeColor={(n) => {
+                  const type = (n.data as unknown as BLNodeData).nodeType
+                  const colors = COLORS.node as Record<string, { bg: string; border: string; text: string }>
+                  return colors[type]?.border ?? COLORS.slate.mid
+                }}
+                maskColor="rgba(255,255,255,0.75)"
+                style={{ border: '1px solid #e2e8f0' }}
+              />
+            )}
           </ReactFlow>
 
-          {/* Hint bubble */}
+          {/* Mobile floating Rules button (top-left) */}
+          <div className="sm:hidden absolute top-3 left-3 z-10">
+            <button
+              onClick={() => setShowMobileRules(true)}
+              className="flex items-center gap-1.5 bg-brand-navy/90 text-white text-xs px-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Rules
+            </button>
+          </div>
+
+          {/* Hint bubble — sits above mobile bottom bar on small screens */}
           {currentHint && (
-            <div className="absolute bottom-4 left-4 right-4 bg-brand-teallite border border-brand-teal/40 rounded-lg px-4 py-2.5 text-xs text-slate shadow-sm animate-slide-up">
+            <div className="absolute bottom-16 sm:bottom-4 left-4 right-4 bg-brand-teallite border border-brand-teal/40 rounded-lg px-4 py-2.5 text-xs text-slate shadow-sm animate-slide-up">
               <span className="font-semibold text-brand-tealdk">Hint: </span>
               {currentHint}
             </div>
           )}
+
+          {/* Mobile bottom action bar */}
+          <div className="sm:hidden absolute bottom-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-3 py-2 flex items-center gap-2">
+            <span className="text-[11px] text-slate-500 font-medium">
+              {placements.length}/{puzzle.tokens.count} tokens
+            </span>
+            {phase === 'playing' && gameMode !== 'mc' && placements.length > 0 && (
+              <span className="text-[10px] text-brand-teal font-medium">
+                · {puzzle.tokens.count - placements.length > 0
+                  ? `${puzzle.tokens.count - placements.length} more`
+                  : 'ready!'}
+              </span>
+            )}
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowMobileObjective(true)}
+              className="flex items-center gap-1.5 bg-brand-navy text-white text-xs px-3 py-1.5 rounded-full shadow active:scale-95 transition-transform"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+              {phase === 'breach-confirmed'
+                ? 'Results'
+                : gameMode === 'mc'
+                ? 'Choices'
+                : 'Objective'}
+            </button>
+          </div>
         </div>
 
-        {/* Right — Objective / MC / Breach Result / Repair */}
+        {/* ── Right panel: desktop always-visible sidebar ── */}
         <aside className={clsx(
-          'flex-shrink-0 border-l border-slate-200 overflow-y-auto transition-all duration-200',
+          'hidden sm:block flex-shrink-0 border-l border-slate-200 overflow-y-auto transition-all duration-200',
           rightPanelWidth,
           phase === 'breach-confirmed' ? 'bg-white' : 'bg-slate-50 p-3',
         )}>
-          {phase === 'breach-confirmed' ? (
-            repairActive ? (
-              <RepairModePanel
-                puzzle={puzzle}
-                choices={repairChoices}
-                baseSolveAtq={(() => {
-                  const base = computeAtqDelta(puzzle.meta.tier, hintsUsed, elapsed, puzzle.meta.estimated_minutes)
-                  return challengeMode ? Math.round(base * 1.5) : gameMode === 'mc' ? Math.round(base * 0.75) : base
-                })()}
-                onBack={() => setRepairActive(false)}
-                onRepairConfirmed={() => setRepairConfirmed(true)}
-              />
-            ) : (
-              <BreachOverlay
-                puzzle={puzzle}
-                placements={placements}
-                elapsedMs={elapsed}
-                hintsUsed={hintsUsed}
-                challengeMode={challengeMode}
-                mcMode={gameMode === 'mc'}
-                onPlayAgain={handleReset}
-                onStartRepair={() => setRepairActive(true)}
-              />
-            )
-          ) : gameMode === 'mc' ? (
-            <MultipleChoicePanel
-              puzzle={puzzle}
-              choices={mcChoices}
-              selected={mcSelected}
-              hovered={mcHovered}
-              wrongId={mcWrongId}
-              challengeMode={challengeMode}
-              onSelect={setMcSelected}
-              onHover={setMcHovered}
-              onConfirm={handleMCConfirm}
-              onReset={handleReset}
-            />
-          ) : (
-            <ObjectivePanel
-              puzzle={puzzle}
-              placements={placements}
-              onPlacementRemove={handleRemovePlacement}
-              onConfirm={handleConfirm}
-              onReset={handleReset}
-              disabled={phase === 'confirmed-wrong'}
-              hintsUsed={hintsUsed}
-              hintLoading={hintLoading}
-              onHint={handleHint}
-              challengeMode={challengeMode}
-            />
-          )}
+          {rightPanelContent}
         </aside>
+
+        {/* ── Mobile objective bottom sheet ── */}
+        {showMobileObjective && (
+          <div className="sm:hidden absolute inset-0 z-30 flex flex-col justify-end">
+            {/* Tap backdrop to close (only when not in breach-confirmed to avoid accidental dismiss) */}
+            <div
+              className="flex-1 bg-black/25"
+              onClick={() => phase !== 'breach-confirmed' && setShowMobileObjective(false)}
+            />
+            <div className="bg-white rounded-t-2xl max-h-[78vh] flex flex-col shadow-2xl">
+              {/* Sheet handle + header */}
+              <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 flex-shrink-0">
+                <div className="w-8 h-1 bg-slate-300 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
+                <span className="text-sm font-semibold text-brand-navy">
+                  {phase === 'breach-confirmed'
+                    ? 'Breach Results'
+                    : gameMode === 'mc'
+                    ? 'Multiple Choice'
+                    : 'Objective'}
+                </span>
+                <button
+                  onClick={() => setShowMobileObjective(false)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Panel content */}
+              <div className={clsx(
+                'overflow-y-auto flex-1',
+                phase === 'breach-confirmed' ? '' : 'p-3',
+              )}>
+                {rightPanelContent}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
